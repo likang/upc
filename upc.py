@@ -397,6 +397,7 @@ class Terminal(cmd.Cmd):
         Quit/Exit the upyun client shell.
         You can also use the Ctrol-D shortcut.
         """
+        self.output('')
         sys.exit(0)
 
     do_EOF = do_exit = do_quit
