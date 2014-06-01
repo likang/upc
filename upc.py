@@ -189,6 +189,56 @@ class Terminal(cmd.Cmd):
         return file_complete(args, os.getcwd(), local_list_dir_func)
 
     @neat()
+    def do_get(self, line, first_call=True):
+        """Download files entries
+
+        get [-r] file ...
+
+            -r  Download folder.
+
+        """
+        opts, fds = getopt.getopt(line.split(), 'r')
+        opts = [o[0] for o in opts]
+        if not fds:
+            self.do_help('get')
+            return
+
+        to_be_dld = []
+        # support shell wildcards
+        cwd_files = self.up.getlist(self.pwd)
+        if first_call:
+            for cf in cwd_files:
+                for fd in fds:
+                    fd = fd.rstrip(os.sep)
+                    if fnmatch.fnmatch(cf['name'], fd):
+                        to_be_dld.append(cf['name'])
+        else:
+            to_be_dld = fds
+
+        # rm file, recursively if needed
+        for fd in to_be_dld:
+            path = os.path.join(self.pwd, fd)
+            info = self.up.getinfo(path)
+            if info['file-type'] == 'folder':
+                if '-r' in opts:
+                    fs = self.up.getlist(path)
+                    for f in fs:
+                        new_path = os.path.join(path, f['name'])
+                        self.do_get('-r %s' % new_path, False)
+            else:
+                relative_path = path[len(self.pwd):]
+                try:
+                    os.makedirs(os.path.join(os.getcwd(),
+                                             os.path.dirname(relative_path)))
+                except OSError:
+                    pass
+                with open(os.path.join(os.getcwd(), relative_path), 'wb') as f:
+                    self.up.get(path, f)
+
+    def complete_file(self, *args):
+        return file_complete(args, self.pwd, self.remote_list_dir_func)
+
+    @neat()
     def do_mkdir(self, line):
         """Make directories
 
