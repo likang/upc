@@ -7,8 +7,9 @@ UPC 意思是 upyun client，它提供了一个命令行环境，供开发者管
 
 1. 几乎完整的命令补全
 2. 批量操作（如上传、删除）
-3. 兼容 OSX/Linux or Unix(?)
-4. 兼容 Python2/Python3
+3. 兼容 OSX / Linux or Unix(?)
+4. 兼容 Python 2.6+ / Python 3.+
+5. 仅依赖 upyun 官方 SDK
 
 ## 安装
 
@@ -22,11 +23,11 @@ pip install upc
 
 ```
 [your-bucket-name]
-username:foo
-password:bar
-timeout:
-chunksize:
-endpoint:
+username=foo
+password=bar
+timeout=
+chunksize=
+endpoint=
 
 
 ```
