@@ -635,9 +635,6 @@ def load_options():
         print("""
 ; Sample upc config file
 
-[web]
-port=7521       ; http port
-
 ; The below sample bucket section shows all possible config values,
 ; create one or more 'real' bucket sections to be able to control them under
 ; upc.
