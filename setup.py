@@ -7,7 +7,7 @@ except ImportError:
 
 setup(
     name='upc',
-    version='0.0.4',
+    version=__import__('upc').__version__,
     url='http://github.com/likang/upc',
     download_url='http://pypi.python.org/pypi/upc',
     description='A simple command-line tool for managing upyun files.',
