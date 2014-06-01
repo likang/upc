@@ -34,7 +34,7 @@ except ImportError:
 
 
 __author__ = 'Kang Li<i@likang.me>'
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 
 
 conf_path = os.path.expanduser('~/.upcrc')
@@ -427,13 +427,7 @@ class Terminal(cmd.Cmd):
     def switch_bucket(self, bucket):
         """Switch to buckets defined in conf_file, and check if it's valid."""
         if self.options.has_section(bucket):
-            up = UpYun(bucket=bucket,
-                       username=self.options.get(bucket, 'username'),
-                       password=self.options.get(bucket, 'password'),
-                       endpoint=self.options.get(bucket, 'endpoint'),
-                       chunksize=self.options.get(bucket, 'chunksize'),
-                       timeout=self.options.get(bucket, 'timeout'),
-                       )
+            up = UpYun(**{k: v.strip() for k, v in self.options.items(bucket)})
             up.usage()
             self.pwd = '/'
             self.up = up
@@ -642,12 +636,12 @@ def load_options():
 ; create one or more 'real' bucket sections to be able to control them under
 ; upc.
 
-;[bucket_name]  ; bucket name
-;username=foo   ; username
-;password=bar   ; password
-;endpoint=      ; custom api gateway url, leave it blank to use default value
-;timeout=       ; connection timeout, default 60 seconds
-;chunksize=     ; transform chunk size, default 8192 bytes
+;[bucket_name]
+;username=foo
+;password=bar
+;endpoint=
+;timeout=
+;chunksize=
 
 ;[more_buckets] ; your bucket name
 ;..""")
