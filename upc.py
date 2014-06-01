@@ -288,16 +288,29 @@ class Terminal(cmd.Cmd):
         """Show file/directory info
 
         file file ...
+
+            -h  Show human-readable output
         """
-        file_name = line.strip().split()[0]
+        opts, files = getopt.getopt(line.strip().split(), 'h')
+        if not files:
+            self.do_help('file')
+            return
+        opts = [o[0] for o in opts]
 
-        info = self.up.getinfo(file_name)
+        show_size = human_size if '-h' in opts else int
+        for f in files:
 
-        self.output('%s\t%s\t%s\t%s' % (
-            {'folder': 'd', 'file': '-'}[info['file-type']],
-            info.get('file-size', ''),
-            datetime.fromtimestamp(int(info['file-date'], )),
-            file_name))
+            info = self.up.getinfo(os.path.join(self.pwd, f))
+
+            if info['file-type'] == 'folder':
+                size = '-'
+            else:
+                size = show_size(info['file-size'])
+            self.output('%s\t%s\t%s\t%s' % (
+                {'folder': 'd', 'file': '-'}[info['file-type']],
+                datetime.fromtimestamp(int(info['file-date'], )),
+                size,
+                f))
 
     complete_file = complete_rm
 
@@ -315,7 +328,7 @@ class Terminal(cmd.Cmd):
             -n  Sort by file name
             -N  Sort by file name desc
         """
-        opts, dirs = getopt.getopt(line.split(), 'hsStTnN')
+        opts, dirs = getopt.getopt(line.strip().split(), 'hsStTnN')
         opts = [o[0] for o in opts]
         dirs = dirs or ['']
 
