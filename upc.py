@@ -34,7 +34,7 @@ except ImportError:
 
 
 __author__ = 'Kang Li<i@likang.me>'
-__version__ = '0.0.3'
+__version__ = '0.0.4'
 
 
 conf_path = os.path.expanduser('~/.upcrc')
@@ -440,7 +440,9 @@ class Terminal(cmd.Cmd):
     def switch_bucket(self, bucket):
         """Switch to buckets defined in conf_file, and check if it's valid."""
         if self.options.has_section(bucket):
-            up = UpYun(**{k: v.strip() for k, v in self.options.items(bucket)})
+            params = {k: v.strip() for k, v in self.options.items(bucket)}
+            params['bucket'] = bucket
+            up = UpYun(**params)
             up.usage()
             self.pwd = '/'
             self.up = up
