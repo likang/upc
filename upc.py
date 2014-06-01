@@ -32,9 +32,6 @@ try:
 except ImportError:
     from configparser import ConfigParser
 
-if sys.version > '3':
-    unicode = str
-
 
 __author__ = 'Kang Li<i@likang.me>'
 __version__ = '0.0.1'
@@ -51,12 +48,15 @@ def neat(**neat_args):
             try:
                 return method(self, *args, **kwargs)
             except UpYunServiceException as ex:
-                self.output('ServiceError(%s): %s' % (ex.status, ex.msg))
+                if not neat_args.get('silence', False):
+                    self.output('ServiceError(%s): %s' % (ex.status, ex.msg))
             except UpYunClientException as ex:
-                self.output('ClientError: %s' % ex.msg)
+                if not neat_args.get('silence', False):
+                    self.output('ClientError: %s' % ex.msg)
             except Exception as ex:
-                msg = getattr(ex, 'msg', ex.message)
-                self.output('UnexpectedError: %s' % msg)
+                if not neat_args.get('silence', False):
+                    msg = getattr(ex, 'msg', getattr(ex, 'message', ex))
+                    self.output('UnexpectedError: %s' % msg)
 
             if 'default' in neat_args:
                 return neat_args['default']
@@ -140,7 +140,7 @@ class Terminal(cmd.Cmd):
             )
 
     def complete_ls(self, *args):
-        return file_complete(args[0], self.pwd,
+        return file_complete(args, self.pwd,
                              self.remote_list_dir_func, type_filter='dir')
 
     @neat()
@@ -186,7 +186,7 @@ class Terminal(cmd.Cmd):
                 self.output('%s\t OK' % f)
 
     def complete_put(self, *args):
-        return file_complete(args[0], os.getcwd(), local_list_dir_func)
+        return file_complete(args, os.getcwd(), local_list_dir_func)
 
     @neat()
     def do_mkdir(self, line):
@@ -212,7 +212,7 @@ class Terminal(cmd.Cmd):
                                             headers=headers)
 
     @neat()
-    def do_rm(self, line):
+    def do_rm(self, line, first_call=True):
         """Remove directory entries
 
         rm [-r] file ...
@@ -229,11 +229,14 @@ class Terminal(cmd.Cmd):
         to_be_rmd = []
         # support shell wildcards
         cwd_files = self.up.getlist(self.pwd)
-        for cf in cwd_files:
-            for fd in fds:
-                fd = fd.rstrip(os.sep)
-                if fnmatch.fnmatch(cf['name'], fd):
-                    to_be_rmd.append(cf['name'])
+        if first_call:
+            for cf in cwd_files:
+                for fd in fds:
+                    fd = fd.rstrip(os.sep)
+                    if fnmatch.fnmatch(cf['name'], fd):
+                        to_be_rmd.append(cf['name'])
+        else:
+            to_be_rmd = fds
 
         # rm file, recursively if needed
         for fd in to_be_rmd:
@@ -243,11 +246,12 @@ class Terminal(cmd.Cmd):
                 if '-r' in opts:
                     fs = self.up.getlist(path)
                     for f in fs:
-                        self.do_rm('-r %s' % os.path.join(path,  f['name']))
+                        new_path = os.path.join(path, f['name'])
+                        self.do_rm('-r %s' % new_path, False)
             self.up.delete(path)
 
     def complete_rm(self, *args):
-        return file_complete(args[0], self.pwd, self.remote_list_dir_func)
+        return file_complete(args, self.pwd, self.remote_list_dir_func)
 
     def do_rmdir(self, d):
         """Remove directories, same with rm"""
@@ -257,23 +261,21 @@ class Terminal(cmd.Cmd):
 
     @neat()
     def do_cd(self, line):
-        """Change working directory"""
+        """Change working directory
+
+        cd [directory]
+        """
         dir_name = (line.strip().split()+[''])[0]
         if not dir_name:
-            self.do_help('cd')
+            self.pwd = '/'
             return
 
-        if dir_name != os.sep:
-            dir_name = dir_name.rstrip(os.sep)
+        path = os.path.abspath(os.path.join(self.pwd, dir_name))
+        if path != '/':
+            path = path.rstrip(os.sep)
 
-        if dir_name == '..':
-            self.pwd = os.path.dirname(self.pwd)
-        else:
-            files = self.up.getlist(self.pwd)
-            if dir_name in [f['name'] for f in files if f['type'] == 'F']:
-                self.pwd = os.path.join(self.pwd, dir_name)
-            else:
-                self.output('no such directory: %s' % dir_name)
+        self.up.getinfo(path)
+        self.pwd = path
 
     complete_cd = complete_ls
 
@@ -350,7 +352,7 @@ class Terminal(cmd.Cmd):
             )
 
     def complete_lls(self, *args):
-        return file_complete(args[0], os.getcwd(),
+        return file_complete(args, os.getcwd(),
                              local_list_dir_func, type_filter='dir')
 
     def do_lpwd(self, line):
@@ -370,10 +372,10 @@ class Terminal(cmd.Cmd):
         os.chdir(path)
 
     def complete_lcd(self, *args):
-        return file_complete(args[0], os.getcwd(),
+        return file_complete(args, os.getcwd(),
                              local_list_dir_func, type_filter='dir')
 
-    @neat(default=list())
+    @neat(default=list(), silence=True)
     def remote_list_dir_func(self, wd):
         """Get directory contents on the remote."""
         files = self.up.getlist(wd)
@@ -405,6 +407,16 @@ class Terminal(cmd.Cmd):
         sys.exit(0)
 
     do_EOF = do_exit = do_quit
+
+    def do_welcome(self, line):
+        self.output("""\
+ __  __     ______   __  __     __  __     __   __
+/\ \/\ \   /\  == \ /\ \_\ \   /\ \/\ \   /\ "-.\ \\
+\ \ \_\ \  \ \  _-/ \ \____ \  \ \ \_\ \  \ \ \-.  \\
+ \ \_____\  \ \_\    \/\_____\  \ \_____\  \ \_\\\\"\_\\
+  \/_____/   \/_/     \/_____/   \/_____/   \/_/ \/_/
+
+""")
 
     @neat()
     def switch_bucket(self, bucket):
@@ -485,13 +497,13 @@ class Terminal(cmd.Cmd):
 
 
 def mix_unicode(s, encoding='utf-8'):
-    if not isinstance(s, unicode):
+    if sys.version < '3':
         return s.decode(encoding)
     return s
 
 
 def mix_str(s, encoding='utf-8'):
-    if isinstance(s, unicode):
+    if sys.version < '3':
         return s.encode(encoding)
     return s
 
@@ -518,7 +530,7 @@ def human_size(num):
     return '%3.2f %s' % (num, 'TB')
 
 
-def file_complete(path, pwd, list_dir_func, type_filter=None):
+def file_complete(args, pwd, list_dir_func, type_filter=None):
     """Get list of files based on the typed path.
 
     :param path: typed path
@@ -528,9 +540,16 @@ def file_complete(path, pwd, list_dir_func, type_filter=None):
     :param type_filter:
     :return: list of possible contents you might want to type
     """
+    path = args[0]
+    new_mod = False
+    # fix python3 on macintosh
+    if path != args[1].split()[-1]:
+        new_mod = True
+        path = args[1].split()[-1]
+
     path = mix_unicode(path)
     pwd = mix_unicode(pwd)
-    input_path = (path.strip().split() + [u''])[0]
+    input_path = (path.strip().split() + [''])[0]
     dist_path = os.path.join(pwd, input_path)
 
     abs_dist_path = os.path.abspath(dist_path)
@@ -556,10 +575,6 @@ def file_complete(path, pwd, list_dir_func, type_filter=None):
                 continue
             files.append(f['name'])
 
-    print 'dirname', dir_name
-    print list_dir_func(dir_name)
-    print 'files', files
-
     completes = [f for f in files if f.startswith(base_name)]
 
     # find the longest common substring from the very start
@@ -572,9 +587,15 @@ def file_complete(path, pwd, list_dir_func, type_filter=None):
             else:
                 break
         if common != base_name:
-            return [mix_str(os.path.join(origin_dir_name, common))]
+            if not new_mod:
+                return [mix_str(common)]
+            else:
+                return [mix_str(os.path.join(origin_dir_name, common))]
 
-    return [mix_str(os.path.join(origin_dir_name, c)) for c in completes]
+    if new_mod:
+        return [mix_str(c) for c in completes]
+    else:
+        return [mix_str(os.path.join(origin_dir_name, c)) for c in completes]
 
 
 def trim_doc(docstring):
@@ -637,30 +658,24 @@ port=7521       ; http port
     return options
 
 
-def welcome(out):
-    out.write("""\
-UP client.
-""")
-
-
-def usage():
-    print("upc bucket_name")
-    sys.exit(2)
-
-
 def main():
     options = load_options()
     up_cmd = Terminal(options)
 
-    if len(sys.argv) >= 2:
-        up_cmd.switch_bucket(sys.argv[1])
-        if up_cmd.up is None:
-            sys.exit(2)
+    if len(sys.argv) == 1:
+        print ('usage: upc bucket-name')
+        print ('usage: upc bucket-name command [option ...]')
+        sys.exit(2)
+
+    up_cmd.switch_bucket(sys.argv[1])
+    if up_cmd.up is None:
+        sys.exit(2)
 
     if len(sys.argv) >= 3:
         up_cmd.onecmd(' '.join(sys.argv[2:]))
     else:
         try:
+            up_cmd.cmdqueue.append('welcome')
             up_cmd.cmdloop()
         except KeyboardInterrupt:
             up_cmd.output('')
