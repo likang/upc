@@ -34,7 +34,7 @@ except ImportError:
 
 
 __author__ = 'Kang Li<i@likang.me>'
-__version__ = '0.0.2'
+__version__ = '0.0.3'
 
 
 conf_path = os.path.expanduser('~/.upcrc')
