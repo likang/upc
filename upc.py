@@ -375,18 +375,6 @@ class Terminal(cmd.Cmd):
         return file_complete(args, os.getcwd(),
                              local_list_dir_func, type_filter='dir')
 
-    @neat(default=list(), silence=True)
-    def remote_list_dir_func(self, wd):
-        """Get directory contents on the remote."""
-        files = self.up.getlist(wd)
-        result = []
-        for f in files:
-            result.append({
-                'name': f['name'],
-                'is_dir': f['type'] == 'F'
-            })
-        return result
-
     def do_use(self, line):
         """Switch bucket.
 
@@ -399,6 +387,11 @@ class Terminal(cmd.Cmd):
 
         self.switch_bucket(bucket)
 
+    def complete_use(self, *args):
+        bucket = (args[0].strip().split()+[''])[0]
+
+        return [b for b in self.options.sections() if b.startswith(bucket)]
+
     def do_quit(self, line):
         """
         Quit/Exit the upyun client shell.
@@ -409,14 +402,25 @@ class Terminal(cmd.Cmd):
     do_EOF = do_exit = do_quit
 
     def do_welcome(self, line):
-        self.output("""\
+        self.output(r"""
  __  __     ______   __  __     __  __     __   __
-/\ \/\ \   /\  == \ /\ \_\ \   /\ \/\ \   /\ "-.\ \\
-\ \ \_\ \  \ \  _-/ \ \____ \  \ \ \_\ \  \ \ \-.  \\
- \ \_____\  \ \_\    \/\_____\  \ \_____\  \ \_\\\\"\_\\
+/\ \/\ \   /\  == \ /\ \_\ \   /\ \/\ \   /\ "-.\ \
+\ \ \_\ \  \ \  _-/ \ \____ \  \ \ \_\ \  \ \ \-.  \
+ \ \_____\  \ \_\    \/\_____\  \ \_____\  \ \_\\"\_\
   \/_____/   \/_/     \/_____/   \/_____/   \/_/ \/_/
+  """)
 
-""")
+    @neat(default=list(), silence=True)
+    def remote_list_dir_func(self, wd):
+        """Get directory contents on the remote."""
+        files = self.up.getlist(wd)
+        result = []
+        for f in files:
+            result.append({
+                'name': f['name'],
+                'is_dir': f['type'] == 'F'
+            })
+        return result
 
     @neat()
     def switch_bucket(self, bucket):
@@ -513,7 +517,7 @@ def local_list_dir_func(wd):
     result = []
     for f in files:
         result.append({
-            'name': f,
+            'name': mix_unicode(f),
             'is_dir': os.path.isdir(os.path.join(wd, f))
         })
     return result
@@ -564,8 +568,6 @@ def file_complete(args, pwd, list_dir_func, type_filter=None):
 
     # filter the files
     for f in list_dir_func(dir_name):
-        f['name'] = mix_unicode(f['name'])
-
         if f['is_dir']:
             if type_filter == 'file':
                 continue
