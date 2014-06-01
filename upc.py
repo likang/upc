@@ -34,7 +34,7 @@ except ImportError:
 
 
 __author__ = 'Kang Li<i@likang.me>'
-__version__ = '0.0.4'
+__version__ = '0.0.5'
 
 
 conf_path = os.path.expanduser('~/.upcrc')
@@ -55,8 +55,9 @@ def neat(**neat_args):
                     self.output('ClientError: %s' % ex.msg)
             except Exception as ex:
                 if not neat_args.get('silence', False):
-                    msg = getattr(ex, 'msg', getattr(ex, 'message', ex))
-                    self.output('UnexpectedError: %s' % msg)
+                    msg = getattr(ex, 'msg', '')
+                    message = getattr(ex, 'message', '')
+                    self.output('UnexpectedError: %s' % msg or message or ex)
 
             if 'default' in neat_args:
                 return neat_args['default']
@@ -437,6 +438,23 @@ class Terminal(cmd.Cmd):
     def complete_lcd(self, *args):
         return file_complete(args, os.getcwd(),
                              local_list_dir_func, type_filter='dir')
+
+    @neat()
+    def do_lmkdir(self, line):
+        opts, dirs = getopt.getopt(line.strip().split(), 'p')
+        opts = [o[0] for o in opts]
+
+        for d in dirs:
+            path = os.path.join(os.getcwd(), d)
+            path = os.path.abspath(os.path.expanduser(path))
+
+            if '-p' in opts:
+                os.makedirs(path)
+            else:
+                os.mkdir(path)
+
+    complete_lmkdir = complete_lcd
+
 
     def do_use(self, line):
         """Switch bucket.
