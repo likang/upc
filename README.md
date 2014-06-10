@@ -28,6 +28,7 @@ password=bar
 timeout=
 chunksize=
 endpoint=
+; endpoint example: v1.api.upyun.com, 127.0.0.1:8080
 
 
 ```
